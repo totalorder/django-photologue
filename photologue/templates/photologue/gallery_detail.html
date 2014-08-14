@@ -12,7 +12,7 @@
             {% if gallery.description %}{{ gallery.description|safe }}{% endif %}
 
 		    {% for photo in gallery.public %}
-		        <a href="{{ photo.get_absolute_url }}">
+		        <a href="{{ photo.get_big_display_url }}" data-lightbox="gallery" data-title="{{ photo.title }} {% filter force_escape %}<a href="{{ photo.image.url }}" target="_blank">Original size</a>{% endfilter %}" >
 		             <img src="{{ photo.get_thumbnail_url }}" class="thumbnail" alt="{{ photo.title }}">
 		        </a>
 		    {% endfor %}

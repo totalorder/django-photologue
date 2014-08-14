@@ -8,4 +8,24 @@ $(document).ready(function() {
 	} else if (path.substring(0, 18) == '/photologue/photo/') {
 		$('ul.navbar-nav li.photos').addClass('active');
 	}
-})
+
+//    $('.carouselle').slick({
+//        lazyLoad: 'ondemand',
+//        slidesToShow: 1,
+//        slidesToScroll: 1,
+//        arrows: false,
+//        fade: true,
+//        asNavFor: '.carouselle-nav'
+////        slidesToShow: 3,
+////        slidesToScroll: 1
+//    });
+//
+//    $('.carouselle-nav').slick({
+//        slidesToShow: 3,
+//        slidesToScroll: 1,
+//        asNavFor: '.carouselle',
+////        dots: true,
+//        centerMode: true,
+//        focusOnSelect: true
+//    });
+});

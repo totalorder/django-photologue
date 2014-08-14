@@ -20,3 +20,7 @@ a.btn.btn-default {
 	margin-bottom: 20px;
 }
 
+
+.slick-prev:before, .slick-next:before {
+    color: gray;
+}
