@@ -55,11 +55,37 @@ class GalleryArchiveIndexView(GalleryDateView, ArchiveIndexView):
 
 
 class GalleryDayArchiveView(GalleryDateView, DayArchiveView):
-    pass
+    def get_month(self):
+        return {'januari':      'jan',
+                'februari':     'feb',
+                'mars':         'mar',
+                'april':        'apr',
+                'maj':          'may',
+                'juni':         'jun',
+                'juli':         'jul',
+                'augusti':      'aug',
+                'september':    'sep',
+                'oktober':      'oct',
+                'november':     'nov',
+                'december':     'dec',
+                }[super(self.__class__, self).get_month()]
 
 
 class GalleryMonthArchiveView(GalleryDateView, MonthArchiveView):
-    pass
+    def get_month(self):
+        return {'januari':      'jan',
+                'februari':     'feb',
+                'mars':         'mar',
+                'april':        'apr',
+                'maj':          'may',
+                'juni':         'jun',
+                'juli':         'jul',
+                'augusti':      'aug',
+                'september':    'sep',
+                'oktober':      'oct',
+                'november':     'nov',
+                'december':     'dec',
+                }[super(self.__class__, self).get_month()]
 
 
 class GalleryYearArchiveView(GalleryDateView, YearArchiveView):
@@ -100,11 +126,37 @@ class PhotoArchiveIndexView(PhotoDateView, ArchiveIndexView):
 
 
 class PhotoDayArchiveView(PhotoDateView, DayArchiveView):
-    pass
+    def get_month(self):
+        return {'januari':      'jan',
+                'februari':     'feb',
+                'mars':         'mar',
+                'april':        'apr',
+                'maj':          'may',
+                'juni':         'jun',
+                'juli':         'jul',
+                'augusti':      'aug',
+                'september':    'sep',
+                'oktober':      'oct',
+                'november':     'nov',
+                'december':     'dec',
+                }[super(self.__class__, self).get_month()]
 
 
 class PhotoMonthArchiveView(PhotoDateView, MonthArchiveView):
-    pass
+    def get_month(self):
+        return {'januari':      'jan',
+                'februari':     'feb',
+                'mars':         'mar',
+                'april':        'apr',
+                'maj':          'may',
+                'juni':         'jun',
+                'juli':         'jul',
+                'augusti':      'aug',
+                'september':    'sep',
+                'oktober':      'oct',
+                'november':     'nov',
+                'december':     'dec',
+                }[super(self.__class__, self).get_month()]
 
 
 class PhotoYearArchiveView(PhotoDateView, YearArchiveView):
