@@ -87,7 +87,7 @@ class PhotoDetailView(DetailView):
 
 class PhotoDateView(object):
     queryset = Photo.objects.on_site().is_public()
-    date_field = 'date_added'
+    date_field = 'date_taken'
     allow_empty = True
 
 

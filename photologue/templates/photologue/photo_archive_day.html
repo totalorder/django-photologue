@@ -1,18 +1,17 @@
 {% extends "photologue/root.html" %}
 {% load i18n %}
 
-{% block title %}{% blocktrans with show_day=day|date:"d F Y" %}Photos for {{ show_day }}{% endblocktrans %}{% endblock %}
+{% block title %}{% blocktrans with show_day=day|date:"j F Y" %}Photos for {{ show_day }}{% endblocktrans %}{% endblock %}
 
 {% block content %}
 
-    <h1>{% blocktrans with show_day=day|date:"d F Y" %}Photos for {{ show_day }}{% endblocktrans %}</h1>
+    <h1>{% blocktrans with show_day=day|date:"j F Y" %}Photos for {{ show_day }}{% endblocktrans %}</h1>
 
 	{% if object_list %}
 		<div class="row col-lg-12">
 		    {% for photo in object_list %}
-		        <a href="{{ photo.get_absolute_url }}">
-		             <img src="{{ photo.get_thumbnail_url }}" class="thumbnail" alt="{{ photo.title }}">
-		        </a>
+                <a href="{{ photo.get_big_display_url }}" data-lightbox="gallery" data-title="{{ photo.title }} ({{ photo.date_taken|date:"Y-m-d" }}, {% filter force_escape %}<a href="{{ photo.image.url }}" target="_blank">Original</a>{% endfilter %})" >
+		             <img src="{{ photo.get_thumbnail_url }}" class="thumbnail" alt="{{ photo.title }}"></a>
 		    {% endfor %}
 		</div>
 	{% else %}

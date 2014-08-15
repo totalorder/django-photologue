@@ -27,9 +27,8 @@
 		{% if latest %}
 			<div class="row">
 			    {% for photo in latest %}
-			        <a href="{{ photo.get_absolute_url }}">
-			             <img src="{{ photo.get_thumbnail_url }}" class="thumbnail" alt="{{ photo.title }}">
-			        </a>
+                    <a href="{{ photo.get_big_display_url }}" data-lightbox="gallery" data-title="{{ photo.title }} ({{ photo.date_taken|date:"Y-m-d" }}, {% filter force_escape %}<a href="{{ photo.image.url }}" target="_blank">Original</a>{% endfilter %})" >
+			             <img src="{{ photo.get_thumbnail_url }}" class="thumbnail" alt="{{ photo.title }}"></a>
 			    {% endfor %}
 			</div>
 		{% else %}

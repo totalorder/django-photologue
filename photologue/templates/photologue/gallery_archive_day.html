@@ -1,11 +1,11 @@
 {% extends "photologue/root.html" %}
 {% load i18n %}
 
-{% block title %}{% blocktrans with show_day=day|date:"d F Y" %}Galleries for {{ show_day }}{% endblocktrans %}{% endblock %}
+{% block title %}{% blocktrans with show_day=day|date:"j F Y" %}Galleries for {{ show_day }}{% endblocktrans %}{% endblock %}
 
 {% block content %}
 
-    <h1>{% blocktrans with show_day=day|date:"d F Y" %}Galleries for {{ show_day }}{% endblocktrans %}</h1>
+    <h1>{% blocktrans with show_day=day|date:"j F Y" %}Galleries for {{ show_day }}{% endblocktrans %}</h1>
 
     {% if object_list %}
         {% for gallery in object_list %}

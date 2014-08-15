@@ -14,7 +14,7 @@
         <div>{% trans "Filter by day" %}</div>
         <ul>
         {% for date in date_list %}
-            <li><a href="{% url 'pl-photo-archive-day' date.year date|date:"b"|lower date.day %}">{{ date|date:"d" }}</a></li>
+            <li><a href="{% url 'pl-photo-archive-day' date.year date|date:"b"|lower date.day %}">{{ date|date:"j" }}</a></li>
         {% endfor %}
         </ul>
 
@@ -25,9 +25,8 @@
 		{% if object_list %}
 			<div class="row col-lg-12">
 			    {% for photo in object_list %}
-			        <a href="{{ photo.get_absolute_url }}">
-			             <img src="{{ photo.get_thumbnail_url }}" class="thumbnail" alt="{{ photo.title }}">
-			        </a>
+                    <a href="{{ photo.get_big_display_url }}" data-lightbox="gallery" data-title="{{ photo.title }} ({{ photo.date_taken|date:"Y-m-d" }}, {% filter force_escape %}<a href="{{ photo.image.url }}" target="_blank">Original</a>{% endfilter %})" >
+			             <img src="{{ photo.get_thumbnail_url }}" class="thumbnail" alt="{{ photo.title }}"></a>
 			    {% endfor %}
 			</div>
 		{% else %}

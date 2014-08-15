@@ -661,8 +661,8 @@ class Photo(ImageModel):
     objects = PassThroughManager.for_queryset_class(PhotoQuerySet)()
 
     class Meta:
-        ordering = ['-date_added']
-        get_latest_by = 'date_added'
+        ordering = ['-date_taken']
+        get_latest_by = 'date_taken'
         verbose_name = _("photo")
         verbose_name_plural = _("photos")
 
