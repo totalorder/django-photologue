@@ -21,7 +21,13 @@ a.btn.btn-default {
 	margin-bottom: 20px;
 }
 
+.lightbox {
+    top: 0px;
+    left: 0px;
+}
 
-.slick-prev:before, .slick-next:before {
-    color: gray;
+@media screen and (min-width: 641px) {
+    .lightbox {
+        top: 50px;
+    }
 }

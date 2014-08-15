@@ -16,7 +16,7 @@
       this.fadeDuration                = 500;
       this.fitImagesInViewport         = true;
       this.resizeDuration              = 50;
-      this.positionFromTop             = 50;
+      this.positionFromTop             = 0;
       this.showImageNumberLabel        = true;
       this.alwaysShowNavOnTouchDevices = false;
       this.wrapAround                  = false;
@@ -174,8 +174,8 @@
       var top  = $window.scrollTop() + this.options.positionFromTop;
       var left = $window.scrollLeft();
       this.$lightbox.css({
-        top: top + 'px',
-        left: left + 'px'
+//        top: top + 'px',
+//        left: left + 'px'
       }).fadeIn(this.options.fadeDuration);
 
       this.changeImage(imageNumber);
@@ -212,8 +212,8 @@
 
           windowWidth    = $(window).width();
           windowHeight   = $(window).height();
-          maxImageWidth  = windowWidth - self.containerLeftPadding - self.containerRightPadding - 20;
-          maxImageHeight = windowHeight - self.containerTopPadding - self.containerBottomPadding - 120;
+          maxImageWidth  = windowWidth - self.containerLeftPadding - self.containerRightPadding;// - 20;
+          maxImageHeight = windowHeight - self.containerTopPadding - self.containerBottomPadding;// - 120;
 
           // Is there a fitting issue?
           if ((preloader.width > maxImageWidth) || (preloader.height > maxImageHeight)) {
