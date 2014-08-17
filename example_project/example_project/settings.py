@@ -3,6 +3,7 @@
 import os
 import sys
 import django
+sys.path.append('..')
 
 DEBUG = TEMPLATE_DEBUG = True
 

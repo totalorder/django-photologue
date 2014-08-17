@@ -5,7 +5,7 @@ from django.core.urlresolvers import reverse_lazy
 from .views import PhotoListView, PhotoDetailView, GalleryListView, \
     GalleryDetailView, PhotoArchiveIndexView, PhotoDateDetailView, PhotoDayArchiveView, \
     PhotoYearArchiveView, PhotoMonthArchiveView, GalleryArchiveIndexView, GalleryYearArchiveView, \
-    GalleryDateDetailView, GalleryDayArchiveView, GalleryMonthArchiveView
+    GalleryDateDetailView, GalleryDayArchiveView, GalleryMonthArchiveView,poll_job
 
 """NOTE: the url names are changing. In the long term, I want the prefix on all url names to be 'photologue-'
 rather than 'pl-'.
@@ -20,7 +20,6 @@ coexist with the existing 'pl-' for some time.
 
 
 urlpatterns = patterns('',
-
                        url(r'^album/(?P<year>\d{4})/(?P<month>[a-z]+)/(?P<day>\w{1,2})/(?P<slug>[\-\d\w]+)/$',
                            GalleryDateDetailView.as_view(),
                            name='pl-album-detail'),
@@ -74,6 +73,5 @@ urlpatterns = patterns('',
                            PhotoListView.as_view(),
                            {'deprecated_pagination': True},
                            name='pl-photo-list'),
-
-
+                       url(r'^poll-job/(?P<job_id>[\w\d\-]+)/$', poll_job, name='poll_job'),
                        )

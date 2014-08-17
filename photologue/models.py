@@ -6,6 +6,10 @@ from inspect import isclass
 import warnings
 import logging
 from io import BytesIO
+from celery import group
+from celery.task import TaskSet
+from celery import current_task
+
 try:
     from importlib import import_module
 except ImportError:
@@ -295,6 +299,8 @@ class GalleryUpload(models.Model):
             raise ValidationError(_('Select an existing gallery or enter a new gallery name.'))
 
     def process_zipfile(self):
+        import photologue.tasks
+        extract_path = os.path.join(PHOTOLOGUE_DIR, 'temp', self.zip_file.name)
         if default_storage.exists(self.zip_file.name):
             # TODO: implement try-except here
             zip = zipfile.ZipFile(default_storage.open(self.zip_file.name))
@@ -302,7 +308,6 @@ class GalleryUpload(models.Model):
             if bad_file:
                 zip.close()
                 raise Exception('"%s" in the .zip archive is corrupt.' % bad_file)
-            count = 1
             current_site = Site.objects.get(id=settings.SITE_ID)
             if self.gallery:
                 logger.debug('Using pre-existing gallery.')
@@ -315,80 +320,34 @@ class GalleryUpload(models.Model):
                                                  is_public=self.is_public,
                                                  tags=self.tags)
                 gallery.sites.add(current_site)
-            for filename in sorted(zip.namelist()):
 
-                logger.debug('Reading file "{0}".'.format(filename))
+            tasks = []
+            for idx, filename in enumerate(sorted(zip.namelist())):
+                #logger.debug('Reading file "{0}".'.format(filename))
 
-                if filename.startswith('__') or filename.startswith('.'):
+                if filename.startswith('__') or filename.startswith('.') or filename.startswith("/"):
                     logger.debug('Ignoring file "{0}".'.format(filename))
                     continue
 
-                #if os.path.dirname(filename):
-                    #logger.warning('Ignoring file "{0}" as it is in a subfolder; all images should be in the top '
-                    #               'folder of the zip.'.format(filename))
-                    #if getattr(self, 'request', None):
-                    #    messages.warning(self.request,
-                    #                     _('Ignoring file "{filename}" as it is in a subfolder; all images should '
-                    #                       'be in the top folder of the zip.').format(filename=filename),
-                    #                     fail_silently=True)
-                    #continue
+                logger.info('Extracting file "{0}".'.format(filename))
+                zip.extract(filename, extract_path)
+                tasks.append(
+                    photologue.tasks.process_zipfile.subtask((gallery.id,
+                                                              os.path.abspath(os.path.join(extract_path, filename)),
+                                                              idx,
+                                                              settings.SITE_ID, self.title, self.caption,
+                                                              self.is_public))
+                )
 
-                data = zip.read(filename)
-
-                if not len(data):
-                    logger.debug('File "{0}" is empty.'.format(filename))
-                    continue
-
-                title = ' '.join([self.title, str(count)])
-                slug = slugify(title)
-
-                try:
-                    Photo.objects.get(slug=slug)
-                    logger.warning('Did not create photo "{0}" with slug "{1}" as a photo with that '
-                                   'slug already exists.'.format(filename, slug))
-                    if getattr(self, 'request', None):
-                        messages.warning(self.request,
-                                         _('Did not create photo "%(filename)s" with slug "{1}" as a photo with that '
-                                           'slug already exists.').format(filename, slug),
-                                         fail_silently=True)
-                    continue
-                except Photo.DoesNotExist:
-                    pass
-
-                photo = Photo(title=title,
-                              slug=slug,
-                              caption=self.caption,
-                              is_public=self.is_public,
-                              tags=self.tags)
-
-                # Basic check that we have a valid image.
-                try:
-                    file = BytesIO(data)
-                    opened = Image.open(file)
-                    opened.verify()
-                except Exception:
-                    # Pillow (or PIL) doesn't recognize it as an image.
-                    # If a "bad" file is found we just skip it.
-                    # But we do flag this both in the logs and to the user.
-                    logger.error('Could not process file "{0}" in the .zip archive.'.format(
-                        filename))
-                    if getattr(self, 'request', None):
-                        messages.warning(self.request,
-                                         _('Could not process file "{0}" in the .zip archive.').format(
-                                         filename,
-                                         fail_silently=True))
-                    continue
-
-                contentfile = ContentFile(data)
-                photo.image.save(filename, contentfile)
-                photo.save()
-                photo.sites.add(current_site)
-                gallery.photos.add(photo)
-                count = count + 1
-
+            job = group(tasks=tasks)
+            result = job.apply_async()
+            print "\nhttp://localhost:8000/poll-job/%s/\n" % result.id
             zip.close()
-            return gallery
+            default_storage.delete(self.zip_file.name)
 
+            result.update_state(state='PROGRESS',
+                                      meta={'result': result})
+            return gallery
 
 class ImageModel(models.Model):
     image = models.ImageField(_('image'),
