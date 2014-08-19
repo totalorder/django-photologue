@@ -6,7 +6,7 @@ from django.conf import settings
 
 #os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'example_project.settings')
 
-app = Celery('photologue', backend='djcelery.backends.database:DatabaseBackend', broker='amqp://guest@localhost//')
+app = Celery('photologue')
 
-#app.config_from_object('django.conf:settings')
+app.config_from_object('django.conf:settings')
 app.autodiscover_tasks(lambda: settings.INSTALLED_APPS)

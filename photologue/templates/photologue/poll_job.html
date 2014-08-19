@@ -2,7 +2,9 @@
 {% load i18n admin_urls admin_static admin_modify %}
 
 {% block extrahead %}{{ block.super }}
-<meta http-equiv="refresh" content="3" />
+{% if not processing_finished %}
+    <meta http-equiv="refresh" content="3" />
+{% endif %}
 <script type="text/javascript" src="{% url 'admin:jsi18n' %}"></script>
 {{ media }}
 {% endblock %}
@@ -24,6 +26,17 @@
 {% endif %}
 
 {% block content %}<div id="content-main">
-    <h1>Processar bilder för galleri {{ gallery.title }}...</h1>
-    <p>{{ completed }} klara av {{ total }} ({{ failed }} misslyckade).</p>
+    <h1>Processing images for gallery {{ gallery.title }}...</h1>
+    <p>{{ completed }} of {{ total }} finished. ({{ failed|length }} failed). {% if processing_finished %} All processing finished.{% endif %}</p>
+    {% if failed %}
+    <p>
+        Failures:
+        <ul class="messagelist">
+            {% for failure in failed %}
+                <li class="error">Photo {{ failure.filename }} failed with error "{{ failure.error }}".</li>
+            {% endfor %}
+        </ul>
+    </p>
+    {% endif %}
+    <a href="{% url opts|admin_urlname:'changelist' %}">Go to Gallery</a>
 {% endblock %}

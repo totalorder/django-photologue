@@ -268,13 +268,14 @@ def celery_poll_job(request, job_id, job_length, job_gallery_id):
     job_length, job_gallery_id = int(job_length), int(job_gallery_id)
     group_result = cel_app.backend.restore_group(job_id)
 
-    failed_count = sum(int(result.failed()) for result in group_result.results)
+    failed_tasks = [result for result in group_result.results if result.failed()]
     completed_count = group_result.completed_count()
 
-    if completed_count + failed_count == job_length:
+    if completed_count == job_length:
         return redirect(reverse('admin:photologue_gallery_change', args=[job_gallery_id]))
 
+    failed = [{'error': task.result.message, 'filename': getattr(task.result, 'filename', '')} for task in failed_tasks]
     gallery = Gallery.objects.get(pk=job_gallery_id)
     return render(request, 'photologue/poll_job.html',
-                  {'completed': completed_count, 'failed': failed_count, 'total': job_length, 'gallery': gallery,
-                   'opts': Gallery._meta})
+                  {'completed': completed_count, 'failed': failed, 'total': job_length, 'gallery': gallery,
+                   'opts': Gallery._meta, 'processing_finished': completed_count + len(failed_tasks) == job_length})

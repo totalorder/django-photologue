@@ -7,6 +7,7 @@ import warnings
 import logging
 from io import BytesIO
 from celery import group
+from photologue import tasks
 
 try:
     from importlib import import_module
@@ -297,8 +298,7 @@ class GalleryUpload(models.Model):
             raise ValidationError(_('Select an existing gallery or enter a new gallery name.'))
 
     def process_zipfile(self):
-        from photologue import tasks # FIXME: Circular dependency
-        extract_path = os.path.join(PHOTOLOGUE_DIR, 'temp', self.zip_file.name)
+        extract_path = os.path.join(PHOTOLOGUE_DIR, 'temp', '%s_content' % self.zip_file.name)
         if default_storage.exists(self.zip_file.name):
             # TODO: implement try-except here
             zip = zipfile.ZipFile(default_storage.open(self.zip_file.name))
@@ -319,32 +319,41 @@ class GalleryUpload(models.Model):
                                                  tags=self.tags)
                 gallery.sites.add(current_site)
 
-            work = []
+            celery_tasks = []
             for idx, filename in enumerate(sorted(zip.namelist())):
-                #logger.debug('Reading file "{0}".'.format(filename))
-
                 if filename.startswith('__') or filename.startswith('.') or filename.startswith("/"):
                     logger.debug('Ignoring file "{0}".'.format(filename))
                     continue
 
-                logger.info('Extracting file "{0}".'.format(filename))
-                zip.extract(filename, extract_path)
-                work.append(
-                    tasks.process_zipfile.subtask((gallery.id,
-                                                              os.path.abspath(os.path.join(extract_path, filename)),
-                                                              idx,
-                                                              settings.SITE_ID, self.title, self.caption,
-                                                              self.is_public))
+                if os.path.isdir(filename):
+                    logger.debug('Ignoring directory "{0}".'.format(filename))
+                    continue
+
+                data = zip.read(filename)
+
+                if not len(data):
+                    logger.debug('File "{0}" is empty.'.format(filename))
+                    continue
+
+                filepath = os.path.join(extract_path, filename)
+
+                logger.info('Writing file "{0}".'.format(filepath))
+                default_storage.save(filepath, ContentFile(data))
+                celery_tasks.append(
+                    tasks.process_photo.subtask((gallery.id,
+                                                 filepath,
+                                                 idx,
+                                                 settings.SITE_ID, self.title, self.caption,
+                                                 self.is_public))
                 )
 
-            job = group(work)
+            job = group(celery_tasks)
             result = job.apply_async()
-            result.state = 'ASD'
             result.save()
 
             if getattr(self, 'request', None):
                 self.request.celery_poll_job_id = result.id
-                self.request.celery_poll_job_length = len(zip.namelist())
+                self.request.celery_poll_job_length = len(celery_tasks)
                 self.request.celery_poll_job_gallery = gallery.id
             zip.close()
             default_storage.delete(self.zip_file.name)

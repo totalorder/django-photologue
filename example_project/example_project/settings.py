@@ -84,6 +84,8 @@ TEMPLATE_CONTEXT_PROCESSORS = (
     'django.core.context_processors.request',
 )
 
+PHOTOLOGUE_ENABLE_CELERY = True
+
 INSTALLED_APPS = [
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -98,8 +100,10 @@ INSTALLED_APPS = [
     'photologue',
     'sortedm2m',
     'example_project',
-    'djcelery',
 ]
+
+if PHOTOLOGUE_ENABLE_CELERY:
+    INSTALLED_APPS.append('djcelery')
 
 if django.VERSION[:2] < (1, 7):
     INSTALLED_APPS.append('south')
@@ -174,3 +178,8 @@ SILENCED_SYSTEM_CHECKS = [
 
 # Uncomment this for Amazon S3 file storage
 # from example_storages.settings_s3boto import *
+
+# Celery config
+BROKER_URL = 'amqp://guest@localhost//'
+CELERY_RESULT_BACKEND = 'djcelery.backends.database:DatabaseBackend'
+

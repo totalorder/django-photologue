@@ -2,71 +2,37 @@ from __future__ import absolute_import
 from io import BytesIO
 import logging
 import os
-import zipfile
 from PIL import Image
+from django.conf import settings
 from django.contrib.sites.models import Site
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.utils.text import slugify
-from celery import current_task
+from celery import shared_task
 
 logger = logging.getLogger('photologue.models')
 
-from celery import shared_task
-from photologue.models import Gallery, Photo
 
+class PhotoProcessException(Exception):
+    def __init__(self, message, filename):
+        super(PhotoProcessException, self).__init__(message)
+        self.filename = filename
 
-@shared_task
-def add(x, y):
-    return x + y
-
-
-@shared_task
-def mul(x, y):
-    return x * y
-
-
-@shared_task
-def xsum(numbers):
-    return sum(numbers)
 
 @shared_task(bind=True, max_retries=5)
-def process_zipfile(self, gallery_id, filename, idx, site_id, gallery_title, gallery_caption, gallery_is_public):
+def process_photo(self, gallery_id, filename, idx, site_id, gallery_title, gallery_caption, gallery_is_public):
+    # This is initiated by photologue.models.Gallery.process_zipfile, but executed in an isolated celery task.
+    # This gives a circular dependency on import time, but is not executed circularly.
+    print settings.MEDIA_ROOT
+    from photologue.models import Gallery, Photo
     try:
         gallery = Gallery.objects.get(pk=gallery_id)
     except Gallery.DoesNotExist:
-        # Since the django admin views are in atomic transactions the gallery might not have been saved yet.
-        #
+        # Since the django admin views are in atomic transactions the gallery might not have been commited yet.
         self.retry(countdown=1)
-    #zip = zipfile.ZipFile(default_storage.open(zip_file_name))
-    #zipnames = sorted(zip.namelist())
-
-    #current_task.update_state(state='PROGRESS',
-    #                          meta={'current': count-1, 'total': len(zipnames)})
-    #for filename in zipnames:
 
     logger.debug('Reading file "{0}".'.format(filename))
-
-    #if filename.startswith('__') or filename.startswith('.') or filename.startswith("/"):
-    #    logger.debug('Ignoring file "{0}".'.format(filename))
-    #    continue
-
-        #if os.path.dirname(filename):
-        #logger.warning('Ignoring file "{0}" as it is in a subfolder; all images should be in the top '
-        #               'folder of the zip.'.format(filename))
-        #if getattr(self, 'request', None):
-        #    messages.warning(self.request,
-        #                     _('Ignoring file "{filename}" as it is in a subfolder; all images should '
-        #                       'be in the top folder of the zip.').format(filename=filename),
-        #                     fail_silently=True)
-        #continue
-
-    with open(filename) as f:
-        data = f.read()
-
-    if not len(data):
-        logger.debug('File "{0}" is empty.'.format(filename))
-        return
+    data = default_storage.open(filename).read()
 
     title = ' '.join([gallery_title, str(idx)])
     slug = slugify(title)
@@ -75,12 +41,7 @@ def process_zipfile(self, gallery_id, filename, idx, site_id, gallery_title, gal
         Photo.objects.get(slug=slug)
         logger.warning('Did not create photo "{0}" with slug "{1}" as a photo with that '
                        'slug already exists.'.format(filename, slug))
-        # if getattr(self, 'request', None):
-        #     messages.warning(self.request,
-        #                      _('Did not create photo "%(filename)s" with slug "{1}" as a photo with that '
-        #                        'slug already exists.').format(filename, slug),
-        #                      fail_silently=True)
-        return
+        raise PhotoProcessException("Slug already exists!", filename)
     except Photo.DoesNotExist:
         pass
 
@@ -88,7 +49,7 @@ def process_zipfile(self, gallery_id, filename, idx, site_id, gallery_title, gal
                   slug=slug,
                   caption=gallery_caption,
                   is_public=gallery_is_public)
-                  #tags=self.tags)
+                  #tags=self.tags) # FIXME
 
     # Basic check that we have a valid image.
     try:
@@ -99,14 +60,9 @@ def process_zipfile(self, gallery_id, filename, idx, site_id, gallery_title, gal
         # Pillow (or PIL) doesn't recognize it as an image.
         # If a "bad" file is found we just skip it.
         # But we do flag this both in the logs and to the user.
-        logger.error('Could not process file "{0}" in the .zip archive.'.format(
+        logger.error('Could not process image "{0}".'.format(
             filename))
-        # if getattr(self, 'request', None):
-        #     messages.warning(self.request,
-        #                      _('Could not process file "{0}" in the .zip archive.').format(
-        #                          filename,
-        #                          fail_silently=True))
-        return
+        raise PhotoProcessException("Not an image!", filename)
 
     contentfile = ContentFile(data)
     photo.image.save(os.path.split(filename)[-1], contentfile)
