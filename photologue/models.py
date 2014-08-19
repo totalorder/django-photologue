@@ -248,6 +248,12 @@ class Gallery(models.Model):
         return self.slug
 
 
+
+class ProcessPhotoException(Exception):
+    def __init__(self, message, filename):
+        super(ProcessPhotoException, self).__init__(message)
+        self.filename = filename
+
 class GalleryUpload(models.Model):
     zip_file = models.FileField(_('images file (.zip)'),
                                 upload_to=os.path.join(PHOTOLOGUE_DIR, 'temp'),
@@ -306,6 +312,7 @@ class GalleryUpload(models.Model):
             if bad_file:
                 zip.close()
                 raise Exception('"%s" in the .zip archive is corrupt.' % bad_file)
+            count = 1
             current_site = Site.objects.get(id=settings.SITE_ID)
             if self.gallery:
                 logger.debug('Using pre-existing gallery.')
@@ -320,7 +327,7 @@ class GalleryUpload(models.Model):
                 gallery.sites.add(current_site)
 
             celery_tasks = []
-            for idx, filename in enumerate(sorted(zip.namelist())):
+            for filename in sorted(zip.namelist()):
                 if filename.startswith('__') or filename.startswith('.') or filename.startswith("/"):
                     logger.debug('Ignoring file "{0}".'.format(filename))
                     continue
@@ -335,30 +342,71 @@ class GalleryUpload(models.Model):
                     logger.debug('File "{0}" is empty.'.format(filename))
                     continue
 
-                filepath = os.path.join(extract_path, filename)
+                if getattr(settings, 'PHOTOLOGUE_ENABLE_CELERY'):
+                    file_path = os.path.join(extract_path, filename)
 
-                logger.info('Writing file "{0}".'.format(filepath))
-                default_storage.save(filepath, ContentFile(data))
-                celery_tasks.append(
-                    tasks.process_photo.subtask((gallery.id,
-                                                 filepath,
-                                                 idx,
-                                                 settings.SITE_ID, self.title, self.caption,
-                                                 self.is_public))
-                )
+                    logger.info('Writing file "{0}".'.format(file_path))
+                    default_storage.save(file_path, ContentFile(data))
+                    celery_tasks.append(
+                        tasks.process_photo.subtask((gallery.id, file_path,  count,
+                                                     self.title, self.caption, self.is_public))
+                    )
+                else:
+                    self.process_photo(gallery, data, filename, count, self.title, self.caption, self.is_public)
+                count += 1
 
-            job = group(celery_tasks)
-            result = job.apply_async()
-            result.save()
+            if getattr(settings, 'PHOTOLOGUE_ENABLE_CELERY'):
+                job = group(celery_tasks)
+                result = job.apply_async()
+                result.save()
 
-            if getattr(self, 'request', None):
-                self.request.celery_poll_job_id = result.id
-                self.request.celery_poll_job_length = len(celery_tasks)
-                self.request.celery_poll_job_gallery = gallery.id
+                if getattr(self, 'request', None):
+                    self.request.celery_poll_job_id = result.id
+                    self.request.celery_poll_job_length = len(celery_tasks)
+                    self.request.celery_poll_job_gallery = gallery.id
             zip.close()
             default_storage.delete(self.zip_file.name)
-
             return gallery
+
+
+    @staticmethod
+    def process_photo(gallery, image_data, filename, number, gallery_title, gallery_caption, gallery_is_public):
+        title = ' '.join([gallery_title, str(number)])
+        slug = slugify(title)
+
+        try:
+            Photo.objects.get(slug=slug)
+            logger.warning('Did not create photo "{0}" with slug "{1}" as a photo with that '
+                           'slug already exists.'.format(filename, slug))
+            raise ProcessPhotoException("Slug already exists!", filename)
+        except Photo.DoesNotExist:
+            pass
+
+        photo = Photo(title=title,
+                      slug=slug,
+                      caption=gallery_caption,
+                      is_public=gallery_is_public,
+                      tags=gallery.tags)
+
+        # Basic check that we have a valid image.
+        try:
+            file = BytesIO(image_data)
+            opened = Image.open(file)
+            opened.verify()
+        except Exception:
+            # Pillow (or PIL) doesn't recognize it as an image.
+            # If a "bad" file is found we just skip it.
+            # But we do flag this both in the logs and to the user.
+            logger.error('Could not process image "{0}".'.format(
+                filename))
+            raise ProcessPhotoException("Not an image!", filename)
+
+        contentfile = ContentFile(image_data)
+        photo.image.save(os.path.split(filename)[-1], contentfile)
+        photo.save()
+        current_site = Site.objects.get(id=settings.SITE_ID)
+        photo.sites.add(current_site)
+        gallery.photos.add(photo)
 
 class ImageModel(models.Model):
     image = models.ImageField(_('image'),

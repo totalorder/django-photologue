@@ -145,12 +145,15 @@ class GalleryUploadAdmin(admin.ModelAdmin):
         obj.save()
 
     def response_add(self, request, obj, post_url_continue="../%s/"):
-        if not '_continue' in request.POST:
-            return redirect(reverse('celery_poll_job', args=[request.celery_poll_job_id,
-                                                             request.celery_poll_job_length,
-                                                             request.celery_poll_job_gallery]))
-        else:
+        if not getattr(settings, 'PHOTOLOGUE_ENABLE_CELERY', None):
             return super(GalleryUploadAdmin, self).response_add(request, obj, post_url_continue)
+        else:
+            if not '_continue' in request.POST:
+                return redirect(reverse('celery_poll_job', args=[request.celery_poll_job_id,
+                                                                 request.celery_poll_job_length,
+                                                                 request.celery_poll_job_gallery]))
+            else:
+                return super(GalleryUploadAdmin, self).response_add(request, obj, post_url_continue)
 
 
 admin.site.register(GalleryUpload, GalleryUploadAdmin)
