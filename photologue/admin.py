@@ -3,7 +3,10 @@ from django.conf import settings
 from django.contrib import admin
 from django.contrib.sites.models import Site
 from django.contrib import messages
+from django.shortcuts import redirect, render
 from django.utils.translation import ungettext, ugettext_lazy as _
+from django.core.urlresolvers import reverse
+from celery_app import app as cel_app
 
 from .models import Gallery, Photo, GalleryUpload, PhotoEffect, PhotoSize, \
     Watermark
@@ -141,6 +144,15 @@ class GalleryUploadAdmin(admin.ModelAdmin):
         obj.request = request
         obj.save()
 
+    def response_add(self, request, obj, post_url_continue="../%s/"):
+        if not '_continue' in request.POST:
+            return redirect(reverse('celery_poll_job', args=[request.celery_poll_job_id,
+                                                             request.celery_poll_job_length,
+                                                             request.celery_poll_job_gallery]))
+        else:
+            return super(GalleryUploadAdmin, self).response_add(request, obj, post_url_continue)
+
+
 admin.site.register(GalleryUpload, GalleryUploadAdmin)
 
 
@@ -250,3 +262,19 @@ class WatermarkAdmin(admin.ModelAdmin):
 
 
 admin.site.register(Watermark, WatermarkAdmin)
+
+
+def celery_poll_job(request, job_id, job_length, job_gallery_id):
+    job_length, job_gallery_id = int(job_length), int(job_gallery_id)
+    group_result = cel_app.backend.restore_group(job_id)
+
+    failed_count = sum(int(result.failed()) for result in group_result.results)
+    completed_count = group_result.completed_count()
+
+    if completed_count + failed_count == job_length:
+        return redirect(reverse('admin:photologue_gallery_change', args=[job_gallery_id]))
+
+    gallery = Gallery.objects.get(pk=job_gallery_id)
+    return render(request, 'photologue/poll_job.html',
+                  {'completed': completed_count, 'failed': failed_count, 'total': job_length, 'gallery': gallery,
+                   'opts': Gallery._meta})

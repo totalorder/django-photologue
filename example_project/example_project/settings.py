@@ -98,6 +98,7 @@ INSTALLED_APPS = [
     'photologue',
     'sortedm2m',
     'example_project',
+    'djcelery',
 ]
 
 if django.VERSION[:2] < (1, 7):

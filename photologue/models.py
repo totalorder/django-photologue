@@ -7,8 +7,6 @@ import warnings
 import logging
 from io import BytesIO
 from celery import group
-from celery.task import TaskSet
-from celery import current_task
 
 try:
     from importlib import import_module
@@ -299,7 +297,7 @@ class GalleryUpload(models.Model):
             raise ValidationError(_('Select an existing gallery or enter a new gallery name.'))
 
     def process_zipfile(self):
-        import photologue.tasks
+        from photologue import tasks # FIXME: Circular dependency
         extract_path = os.path.join(PHOTOLOGUE_DIR, 'temp', self.zip_file.name)
         if default_storage.exists(self.zip_file.name):
             # TODO: implement try-except here
@@ -321,7 +319,7 @@ class GalleryUpload(models.Model):
                                                  tags=self.tags)
                 gallery.sites.add(current_site)
 
-            tasks = []
+            work = []
             for idx, filename in enumerate(sorted(zip.namelist())):
                 #logger.debug('Reading file "{0}".'.format(filename))
 
@@ -331,22 +329,26 @@ class GalleryUpload(models.Model):
 
                 logger.info('Extracting file "{0}".'.format(filename))
                 zip.extract(filename, extract_path)
-                tasks.append(
-                    photologue.tasks.process_zipfile.subtask((gallery.id,
+                work.append(
+                    tasks.process_zipfile.subtask((gallery.id,
                                                               os.path.abspath(os.path.join(extract_path, filename)),
                                                               idx,
                                                               settings.SITE_ID, self.title, self.caption,
                                                               self.is_public))
                 )
 
-            job = group(tasks=tasks)
+            job = group(work)
             result = job.apply_async()
-            print "\nhttp://localhost:8000/poll-job/%s/\n" % result.id
+            result.state = 'ASD'
+            result.save()
+
+            if getattr(self, 'request', None):
+                self.request.celery_poll_job_id = result.id
+                self.request.celery_poll_job_length = len(zip.namelist())
+                self.request.celery_poll_job_gallery = gallery.id
             zip.close()
             default_storage.delete(self.zip_file.name)
 
-            result.update_state(state='PROGRESS',
-                                      meta={'result': result})
             return gallery
 
 class ImageModel(models.Model):

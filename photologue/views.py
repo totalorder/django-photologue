@@ -1,15 +1,9 @@
 import warnings
-
 from django.conf import settings
 from django.views.generic.dates import ArchiveIndexView, DateDetailView, DayArchiveView, MonthArchiveView, YearArchiveView
 from django.views.generic.detail import DetailView
 from django.views.generic.list import ListView
 from .models import Photo, Gallery
-import json
-from celery.result import AsyncResult, TaskSetResult
-from celery import current_app
-from django.http import HttpResponse
-
 
 # Number of galleries to display per page.
 GALLERY_PAGINATE_BY = getattr(settings, 'PHOTOLOGUE_GALLERY_PAGINATE_BY', 20)
@@ -166,12 +160,3 @@ class PhotoMonthArchiveView(PhotoDateView, MonthArchiveView):
 
 class PhotoYearArchiveView(PhotoDateView, YearArchiveView):
     make_object_list = True
-
-def poll_job(request, job_id):
-    job = AsyncResult(job_id)
-    data = job.state # job.result or
-    print data
-
-    #job = AsyncResult(job_id)
-    #job = current_app.TaskSetResult.restore(job_id)
-    return HttpResponse(json.dumps({'completed': data, 'total': 0}), mimetype='application/json')

@@ -30,9 +30,14 @@ def mul(x, y):
 def xsum(numbers):
     return sum(numbers)
 
-@shared_task
-def process_zipfile(gallery_id, filename, idx, site_id, gallery_title, gallery_caption, gallery_is_public):
-    gallery = Gallery.objects.get(pk=gallery_id)
+@shared_task(bind=True, max_retries=5)
+def process_zipfile(self, gallery_id, filename, idx, site_id, gallery_title, gallery_caption, gallery_is_public):
+    try:
+        gallery = Gallery.objects.get(pk=gallery_id)
+    except Gallery.DoesNotExist:
+        # Since the django admin views are in atomic transactions the gallery might not have been saved yet.
+        #
+        self.retry(countdown=1)
     #zip = zipfile.ZipFile(default_storage.open(zip_file_name))
     #zipnames = sorted(zip.namelist())
 
@@ -109,8 +114,3 @@ def process_zipfile(gallery_id, filename, idx, site_id, gallery_title, gallery_c
     current_site = Site.objects.get(id=site_id)
     photo.sites.add(current_site)
     gallery.photos.add(photo)
-    #count = count + 1
-    #current_task.update_state(state='PROGRESS',
-    #                          meta={'current': count, 'total': len(zipnames)})
-
-    #zip.close()

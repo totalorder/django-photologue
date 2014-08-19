@@ -1,11 +1,12 @@
 from django.conf.urls import *
 from django.views.generic import RedirectView
 from django.core.urlresolvers import reverse_lazy
+from photologue.admin import celery_poll_job
 
 from .views import PhotoListView, PhotoDetailView, GalleryListView, \
     GalleryDetailView, PhotoArchiveIndexView, PhotoDateDetailView, PhotoDayArchiveView, \
     PhotoYearArchiveView, PhotoMonthArchiveView, GalleryArchiveIndexView, GalleryYearArchiveView, \
-    GalleryDateDetailView, GalleryDayArchiveView, GalleryMonthArchiveView,poll_job
+    GalleryDateDetailView, GalleryDayArchiveView, GalleryMonthArchiveView
 
 """NOTE: the url names are changing. In the long term, I want the prefix on all url names to be 'photologue-'
 rather than 'pl-'.
@@ -73,5 +74,6 @@ urlpatterns = patterns('',
                            PhotoListView.as_view(),
                            {'deprecated_pagination': True},
                            name='pl-photo-list'),
-                       url(r'^poll-job/(?P<job_id>[\w\d\-]+)/$', poll_job, name='poll_job'),
+                       url(r'^admin/poll-job/(?P<job_id>[\w\d\-]+)/(?P<job_length>[\d]+)/(?P<job_gallery_id>[\d]+)/$',
+                           celery_poll_job, name='celery_poll_job'),
                        )
